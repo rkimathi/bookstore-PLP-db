@@ -11,14 +11,16 @@ COLLATE utf8mb4_unicode_ci;
 -- use the bookstore_db
 USE bookstore_db;
 
--- Create the Database Tables
--- Book Related Tables
-    -- publisher
-    -- book_language
-    -- book
-    -- author
-    -- book_author
 
+-- ***********************************************************
+-- Create the Database Tables								 *
+-- Book Related Tables										 *
+    -- publisher											 *		
+    -- book_language										 *
+    -- book													 *
+    -- author												 *
+    -- book_author											 *
+-- ***********************************************************
 
 -- Publisher Table
 CREATE TABLE IF NOT EXISTS publisher (
@@ -82,3 +84,74 @@ CREATE TABLE IF NOT EXISTS book_author (
     CONSTRAINT fk_book_author_author FOREIGN KEY (author_id)
         REFERENCES  author(author_id) ON DELETE CASCADE
 ) ENGINE=InnoDB COMMENT='Relationship between books and authors';
+
+
+-- *****************************************************
+-- customer and Address tables
+    -- country
+    -- address
+    -- address_status
+    -- customer
+    -- customer_address
+-- ****************************************************
+
+-- country table
+CREATE  TABLE IF NOT EXISTS country(
+    country_id  INT AUTO_INCREMENT PRIMARY KEY,
+    country_name VARCHAR(100) NOT NULL,
+    country_code CHAR(3) NOT NULL COMMENT 'Alpha-2 code eg. KE, US, UG',
+    CONSTRAINT uk_country_name UNIQUE (country_name),
+    CONSTRAINT uk_country_code UNIQUE (country_code)
+) ENGINE=InnoDB COMMENT='Countries for Address Information';
+
+-- address table
+CREATE TABLE IF NOT EXISTS address (
+    address_id INT AUTO_INCREMENT PRIMARY KEY,
+    street_number VARCHAR(10),
+    street_name VARCHAR(100) NOT NULL,
+    city VARCHAR(50) NOT NULL,
+    country_id INT NOT NULL,
+    CONSTRAINT fk_address_country FOREIGN KEY (country_id)
+        REFERENCES country(country_id) ON DELETE RESTRICT,
+    INDEX idx_address_city (city),
+    INDEX idx_address_street (street_name)
+) ENGINE=InnoDB COMMENT='Physical Address Information'
+
+-- address_status table
+CREATE TABLE IF NOT EXISTS address_status (
+    status_id INT AUTO_INCREMENT PRIMARY KEY,
+    status_name VARCHAR(50) NOT NULL COMMENT 'e.g Active, Inactive, Primary'
+) ENGINE=InnoDB COMMENT='Address Status';
+
+-- customer table
+CREATE TABLE IF NOT EXISTS customer (
+    customer_id INT AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    password_hash VARCHAR(255) NOT NULL COMMENT 'stores the users hashed password for security',
+    last_login TIMESTAMP NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    CONSTRAINT uk_customer_email UNIQUE (email),
+    INDEX idx_customer_name (last_name,first_name),
+    INDEX idx_customer_phone (phone)
+) ENGINE=InnoDB COMMENT='customer Information';
+
+-- customer_address table
+-- A list of addresses for customers. Each customer can have multiple addresses.
+CREATE TABLE IF NOT EXISTS customer_address (
+    customer_id INT NOT NULL,
+    address_id INT NOT NULL,
+    status_id INT NOT NULL,
+    date_from TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    date_to TIMESTAMP NULL COMMENT 'Null denotes current address',
+    PRIMARY KEY (customer_id, address_id,status_id),
+    CONSTRAINT fk_customer_address_customer FOREIGN KEY (customer_id)
+        REFERENCES customer(customer_id) ON DELETE CASCADE,
+    CONSTRAINT fk_customer_address_address FOREIGN KEY (address_id)
+        REFERENCES address(address_id) on DELETE CASCADE,
+    CONSTRAINT fk_customer_address_status FOREIGN KEY (status_id)
+        REFERENCES address_status(status_id) ON DELETE RESTRICT
+) ENGINE=InnoDB COMMENT='Relationship between Customer and their addresses';
