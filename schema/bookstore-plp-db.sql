@@ -155,3 +155,75 @@ CREATE TABLE IF NOT EXISTS customer_address (
     CONSTRAINT fk_customer_address_status FOREIGN KEY (status_id)
         REFERENCES address_status(status_id) ON DELETE RESTRICT
 ) ENGINE=InnoDB COMMENT='Relationship between Customer and their addresses';
+
+-- Orders Management Tables
+    -- shipping_method
+    -- order_status
+    -- cust_order
+    -- order_line
+    -- order_history
+    -- order_status
+
+
+-- shipping method table
+CREATE TABLE IF NOT EXISTS shipping_method (
+    method_id INT AUTO_INCREMENT PRIMARY KEY,
+    method_name ENUM('Uber Parcel','Bus Drop','Courier Service','Pickup from Shop')  NOT NULL,
+    cost DECIMAL(10,2) NOT NULL,
+    delivery_type ENUM ('same day delivery','following day delivery','pickup') NOT NULL COMMENT 'Same day delivery, Following day delivery,pickup',
+    CONSTRAINT uk_method_name UNIQUE (method_name)
+) ENGINE=InnoDB COMMENT='Available Shipping Methods';
+
+-- order status table
+CREATE TABLE IF NOT EXISTS order_status (
+    status_id INT AUTO_INCREMENT PRIMARY KEY,
+    status_value ENUM('received','pending','confirmed','processing','shipped','delivered','collected','cancelled'),
+    CONSTRAINT uk_status_value UNIQUE (status_value)
+) ENGINE InnoDB COMMENT='Order Statuses'
+
+-- customer order table
+CREATE TABLE IF NOT EXISTS cust_order (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    shipping_method_id INT NOT NULL,
+    shipping_address_id INT NOT NULL,
+    order_total DECIMAL(12,2) NOT NULL COMMENT 'Calculated total amount',
+    CONSTRAINT fk_order_customer FOREIGN KEY (customer_id)
+        REFERENCES customer(customer_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_shipping_method FOREIGN KEY (shipping_method_id)
+        REFERENCES shipping_method(method_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_order_shipping_address FOREIGN KEY (shipping_address_id)
+        REFERENCES address(address_id) ON DELETE RESTRICT,
+    INDEX idx_order_date (order_date),
+    INDEX idx_order_customer (customer_id,order_date)
+) ENGINE=InnoDB COMMENT='Customer Order Information';
+
+-- order line table
+CREATE TABLE IF NOT EXISTS order_line (
+    line_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    book_id INT NOT NULL,
+    quantity SMALLINT NOT NULL DEFAULT 1,
+    price DECIMAL(10,2) NOT NULL COMMENT 'Price at time of order',
+    CONSTRAINT fk_order_line_order FOREIGN KEY (order_id)
+        REFERENCES cust_order(order_id) ON DELETE CASCADE,
+    CONSTRAINT fk_order_line_book FOREIGN KEY (book_id)
+        REFERENCES book(book_id) ON DELETE RESTRICT,
+    INDEX idx_order_line_order (order_id),
+    INDEX idx_order_line_book (book_id)
+) ENGINE=InnoDB COMMENT='Individual Items within an Order';
+
+-- Order History TABLE
+CREATE TABLE IF NOT EXISTS order_history (
+    history_id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    status_id INT NOT NULL,
+    status_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT,
+    CONSTRAINT fk_order_history_order FOREIGN KEY (order_id)
+        REFERENCES cust_order(order_id) ON DELETE CASCADE,
+    CONSTRAINT fk_order_history_status FOREIGN KEY (status_id)
+        REFERENCES order_status(status_id) ON DELETE RESTRICT,
+    INDEX idx_order_history_order(order_id, status_date)
+) ENGINE=InnoDB COMMENT='Audit Trail of order status changes';
