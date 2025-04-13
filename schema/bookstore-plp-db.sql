@@ -227,3 +227,125 @@ CREATE TABLE IF NOT EXISTS order_history (
         REFERENCES order_status(status_id) ON DELETE RESTRICT,
     INDEX idx_order_history_order(order_id, status_date)
 ) ENGINE=InnoDB COMMENT='Audit Trail of order status changes';
+
+-- user Management
+-- Create application roles
+CREATE ROLE 'bookstore_admin', 'bookstore_staff', 'bookstore_customer';
+
+-- Admin user with full access
+CREATE USER 'bookstore_admin_user'@'localhost' IDENTIFIED BY 'BookStoreAdmin@123!';
+GRANT ALL PRIVILEGES ON bookstore_db.* TO 'bookstore_admin_user'@'localhost';
+GRANT 'bookstore_admin' TO 'bookstore_admin_user'@'localhost';
+
+-- Staff user with limited access
+CREATE USER 'bookstore_staff_user'@'localhost' IDENTIFIED BY 'SecureStaffPassword456!';
+GRANT SELECT, INSERT, UPDATE ON bookstore_db.* TO 'bookstore_staff_user'@'localhost';
+GRANT SELECT ON bookstore_db.customer TO 'bookstore_staff_user'@'localhost'; -- Limited customer access
+REVOKE DELETE ON bookstore_db.* FROM 'bookstore_staff_user'@'localhost';
+GRANT 'bookstore_staff' TO 'bookstore_staff_user'@'localhost';
+
+-- Application user (read/write for orders)
+CREATE USER 'bookstore_app'@'%' IDENTIFIED BY 'AppPassword789!';
+GRANT SELECT, INSERT, UPDATE ON bookstore_db.cust_order TO 'bookstore_app'@'%';
+GRANT SELECT, INSERT, UPDATE ON bookstore_db.order_line TO 'bookstore_app'@'%';
+GRANT SELECT, INSERT ON bookstore_db.order_history TO 'bookstore_app'@'%';
+GRANT SELECT ON bookstore_db.* TO 'bookstore_app'@'%'; -- Read access to all tables
+GRANT 'bookstore_customer' TO 'bookstore_app'@'%';
+
+-- Read-only reporting user
+CREATE USER 'bookstore_reporting'@'%' IDENTIFIED BY 'ReportingPassword101!';
+GRANT SELECT ON bookstore_db.* TO 'bookstore_reporting'@'%';
+
+-- Set default roles
+SET DEFAULT ROLE 'bookstore_admin' TO 'bookstore_admin_user'@'localhost';
+SET DEFAULT ROLE 'bookstore_staff' TO 'bookstore_staff_user'@'localhost';
+SET DEFAULT ROLE 'bookstore_customer' TO 'bookstore_app'@'%';
+
+FLUSH PRIVILEGES;
+
+
+-- Insert sample languages
+INSERT INTO book_language (language_code, language_name) VALUES
+    ('en', 'English'),
+    ('sw', 'Swahili');
+
+-- Insert Kenyan publishers
+INSERT INTO publisher (publisher_name, established_date, website) VALUES
+    ('East African Educational Publishers', '1965-01-01', 'https://www.eastafricanpublishers.com/'),
+    ('Longhorn Kenya', '1949-01-01', 'https://www.longhornpublishers.com/'),
+    ('Jomo Kenyatta Foundation', '1966-01-01', 'https://www.jkf.co.ke/'),
+    ('Mvule Africa Publishers', '2008-01-01', 'https://www.mvuleafricapublishers.com/'),
+    ('Storymoja Publishers', '2007-01-01', 'https://storymojaafrica.co.ke/');
+
+-- Insert Kenyan and East African authors
+INSERT INTO author (first_name, last_name, birth_date) VALUES
+    ('Ngũgĩ', 'wa Thiong''o', '1938-01-05'),      -- Kenya (Renowned novelist & playwright)
+    ('Grace', 'Ogot', '1930-05-15'),             -- Kenya (Pioneering female writer)
+    ('Meja', 'Mwangi', '1948-12-02'),            -- Kenya (Award-winning novelist)
+    ('Okot', 'p''Bitek', '1931-06-07'),          -- Uganda (Poet & cultural critic)
+    ('Mariama', 'Ba', '1929-04-17'),             -- Senegal (Though not East African, influential in African lit)
+    ('Chimamanda', 'Ngozi Adichie', '1977-09-15'),-- Nigeria (Widely read across Africa)
+    ('Petina', 'Gappah', '1971-01-01'),          -- Zimbabwe (Contemporary author)
+    ('Binyavanga', 'Wainaina', '1971-01-18'),    -- Kenya (Essayist & memoirist)
+    ('Yvonne', 'Adhiambo Owuor', '1968-01-01'),  -- Kenya (Award-winning novelist)
+    ('Abdulrazak', 'Gurnah', '1948-12-20');      -- Tanzania (Nobel Prize winner, based in UK)
+
+-- Insert books by Kenyan and East African authors
+INSERT INTO book (title, isbn, publisher_id, language_id, num_pages, publication_date, price, stock_quantity) VALUES
+    ('Petals of Blood', '9780143106764', 1, 1, 384, '1977-01-01', 14.99, 30),               -- Ngũgĩ wa Thiong'o
+    ('Weep Not, Child', '9780143106696', 1, 1, 160, '1964-01-01', 10.99, 40),              -- Ngũgĩ wa Thiong'o
+    ('The Promised Land', '9789966255031', 2, 1, 180, '1966-01-01', 12.50, 25),            -- Grace Ogot
+    ('Song of Lawino', '9780852555532', 3, 1, 192, '1966-01-01', 11.99, 35),               -- Okot p'Bitek
+    ('Dust', '9781476773912', 4, 1, 368, '2014-01-01', 16.00, 20),                        -- Yvonne Adhiambo Owuor
+    ('One Day I Will Write About This Place', '9781555975913', 5, 1, 256, '2011-01-01', 13.95, 30), -- Binyavanga Wainaina
+    ('Paradise', '9781565841635', 1, 1, 256, '1994-01-01', 15.99, 25),                     -- Abdulrazak Gurnah
+    ('The River and The Source', '9780195737757', 2, 1, 320, '1994-01-01', 12.75, 40),      -- Margaret Ogola (Bonus Kenyan author)
+    ('Kintu', '9781941920263', 3, 1, 446, '2014-01-01', 18.50, 20);                       -- Jennifer Nansubuga Makumbi (Ugandan)
+
+
+-- Assign authors to their books (matching Kenyan/East African works)
+INSERT INTO book_author (book_id, author_id) VALUES
+    (1, 1),   -- 'Petals of Blood' → Ngũgĩ wa Thiong'o
+    (2, 1),   -- 'Weep Not, Child' → Ngũgĩ wa Thiong'o
+    (3, 2),   -- 'The Promised Land' → Grace Ogot
+    (4, 4),   -- 'Song of Lawino' → Okot p'Bitek
+    (5, 9),   -- 'Dust' → Yvonne Adhiambo Owuor
+    (6, 8),   -- 'One Day I Will Write...' → Binyavanga Wainaina
+    (7, 10),  -- 'Paradise' → Abdulrazak Gurnah
+    (8, 11),  -- 'The River and The Source' → Margaret Ogola (assuming author_id 11 was added)
+    (9, 12);  -- 'Kintu' → Jennifer Nansubuga Makumbi (assuming author_id 12 was added)
+
+-- Active customer view
+CREATE VIEW active_customers AS
+SELECT customer_id, first_name, last_name, email, registration_date
+FROM customer
+WHERE is_active = TRUE;
+
+-- Book inventory view
+CREATE VIEW book_inventory AS
+SELECT b.book_id, b.title, b.isbn, a.first_name, a.last_name,
+       b.price, b.stock_quantity,
+       CASE
+           WHEN b.stock_quantity > 10 THEN 'In Stock'
+           WHEN b.stock_quantity > 0 THEN 'Low Stock'
+           ELSE 'Out of Stock'
+           END AS stock_status
+FROM book b
+         LEFT JOIN book_author ba ON b.book_id = ba.book_id
+         LEFT JOIN author a ON ba.author_id = a.author_id;
+
+-- Order summary view
+CREATE VIEW order_summary AS
+SELECT o.order_id, c.first_name, c.last_name, o.order_date,
+       o.order_total, os.status_value AS current_status,
+       sm.method_name AS shipping_method
+FROM cust_order o
+         JOIN customer c ON o.customer_id = c.customer_id
+         JOIN order_history oh ON o.order_id = oh.order_id
+         JOIN order_status os ON oh.status_id = os.status_id
+         JOIN shipping_method sm ON o.shipping_method_id = sm.method_id
+WHERE oh.status_date = (
+    SELECT MAX(status_date)
+    FROM order_history
+    WHERE order_id = o.order_id
+);
